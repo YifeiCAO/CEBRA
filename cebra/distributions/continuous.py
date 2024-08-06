@@ -247,7 +247,14 @@ class TimedeltaDistribution(abc_.JointDistribution, abc_.HasGenerator):
                 "Pass a 1D array of indices of reference samples.")
 
         num_samples = reference_idx.size(0)
-        diff_idx = self.randint(len(self.time_difference), (num_samples,))
+        # Create weights for Gaussian sampling
+        weights = torch.linspace(1, 0, steps=len(self.time_difference)).to(self.device)
+        weights = torch.exp(-1 * (weights - torch.max(weights)))  # Normalize and convert to probability
+        weights /= torch.sum(weights)  # Ensure it sums to 1
+        
+        # Use multinomial to sample according to the Gaussian distribution
+        diff_idx = torch.multinomial(weights, num_samples, replacement=True)
+        #diff_idx = self.randint(len(self.time_difference), (num_samples,))
         query = self.data[reference_idx] + self.time_difference[diff_idx]
         return self.index.search(query)
 
